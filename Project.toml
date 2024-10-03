@@ -1,0 +1,7 @@
+name = "MLDs"
+uuid = "cac4bed1-6c8c-4dbe-be0d-c63a427c1233"
+authors = ["Tommaso Stentella <stentell@molgen.mpg.de> and contributors"]
+version = "0.1.0"
+
+[compat]
+julia = "1.6"
