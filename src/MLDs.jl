@@ -11,6 +11,8 @@ export
 
 # Computing
 
+include("mathematica-derived.jl")
+
 function secondderivative(f, x)
     dfdx = x -> ForwardDiff.derivative(f, x)
     ForwardDiff.derivative(dfdx, x)
