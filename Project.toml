@@ -10,4 +10,4 @@ LinearAlgebra = "37e2e46d-f89d-539d-b4ee-838fcccc9c8e"
 [compat]
 ForwardDiff = "0.10.36"
 LinearAlgebra = "1.11.0"
-julia = "1.6"
+julia = "1.11"
