@@ -85,14 +85,14 @@ function hid_integral(TN::Vector, mu::Float64, r::Number)
 	# TN = [L, N0, T1, N1, T2, N2, ...]
 	L = TN[1]
 	N = TN[end]
-	(mu*L)/(N^2) * ForwardDiff.derivative(s -> EpochModel.laplace_n(TN, s), 2*mu*r)
+	(mu*L)/(N^2) * ForwardDiff.derivative(s -> laplace_n(TN, s), 2*mu*r)
 	# prefactor    pure bliss
 end
 
 function hid_integral(Nv::Vector, Tv::Vector, L::Number, mu::Float64, r::Number)
     # integral of hid
 	N = Nv[end]
-	(mu*L)/(N^2) * ForwardDiff.derivative(s -> EpochModel.laplace_n(Nv, Tv, s), 2*mu*r)
+	(mu*L)/(N^2) * ForwardDiff.derivative(s -> laplace_n(Nv, Tv, s), 2*mu*r)
 	# prefactor    pure bliss
 end
 
