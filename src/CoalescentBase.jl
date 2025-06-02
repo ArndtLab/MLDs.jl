@@ -1,10 +1,24 @@
 module CoalescentBase
 using ForwardDiff
 
-export coalescent, extbps, laplace_n, lineages, cumulative_lineages
+export ordts, ordns, coalescent, extbps, laplace_n, lineages, cumulative_lineages
+
+function ordts(TN::Vector)
+    # TN = [L, N0, T1, N1, T2, N2, ...]
+    # returns the ordered times in reverse order
+    ts = [0;cumsum(reverse(TN[3:2:end-1]))]
+    return ts
+end
+
+function ordns(TN::Vector)
+    # TN = [L, N0, T1, N1, T2, N2, ...]
+    # returns the ordered population sizes in reverse order
+    ns = reverse(TN[2:2:end])
+    return ns
+end
 
 """
-    coalescent(t::Int, TN::Vector)
+    coalescent(t::Number, TN::Vector)
 
 Calculate the probability of coalescence at time `t` generations in
 the past.
@@ -15,9 +29,13 @@ of such `t`s is geometric as introduced by Hudson and Kingman.
 
 ### References
 """
-function coalescent(t::Int, TN::Vector)
-    ts = [0;cumsum(reverse(TN[3:2:end-1]))]
-    ns = reverse(TN[2:2:end])
+function coalescent(t::Number, TN::Vector)
+    ts = ordts(TN)
+    ns = ordns(TN)
+    return coalescent(t, ts, ns)
+end
+
+function coalescent(t::Number, ts::Vector, ns::Vector)
     pnt = 1
     c = 0.
     while (pnt < length(ts)) && (ts[pnt] < t)
@@ -36,7 +54,7 @@ function coalescent(t::Int, TN::Vector)
 end
 
 """
-    extbps(t::Float64, TN::Vector)
+    extbps(t::Number, TN::Vector)
 
 Calculate the the expected number of basepairs that still have to
 reach coalescence at time `t` generations in the past. 
@@ -45,10 +63,14 @@ The demographic scenario is encoded in `TN`.
 
 ### Reference
 """
-function extbps(t::Float64, TN::Vector)
+function extbps(t::Number, TN::Vector)
+    ts = ordts(TN)
+    ns = ordns(TN)
     L = Float64(TN[1])
-    ts = [0;cumsum(reverse(TN[3:2:end-1]))]
-    ns = reverse(TN[2:2:end])
+    return extbps(t, L, ts, ns)
+end
+
+function extbps(t::Number, L::Number, ts::Vector, ns::Vector)
     pnt = 1
     c = 0.
     while (pnt < length(ts)) && (ts[pnt] < t)
@@ -122,9 +144,14 @@ than `k` basepairs.
 The demographic scenario is encoded in `TN` and the recombination rate is `rho`
 in unit per bp per generation.
 """
-function lineages(t, TN::Vector, rho::Float64; k::Int = 0)
-    ts = [0;cumsum(reverse(TN[3:2:end-1]))]
-    ns = reverse(TN[2:2:end])
+function lineages(t::Number, rho::Number, TN::Vector; k::Int = 0)
+    ts = ordts(TN)
+    ns = ordns(TN)
+    L = TN[1]
+    return lineages(t, L, rho, ts, ns; k)
+end
+
+function lineages(t::Number, L::Number, rho::Number, ts::Vector, ns::Vector; k::Int = 0)
     pnt = 1
     c = 0.
     while (pnt < length(ts)) && (ts[pnt] < t)
@@ -139,12 +166,12 @@ function lineages(t, TN::Vector, rho::Float64; k::Int = 0)
         c += gens / 2N
         pnt += 1
     end
-    return 2TN[1] * rho * t * exp(-2rho * t * k - c) / 2ns[pnt-1]
+    return 2L * rho * t * exp(-2rho * t * k - c) / 2ns[pnt-1]
 end
 
 function cumulative_lineages(t, TN::Vector, rho::Float64; k::Int = 0)
-    ts = [0;cumsum(reverse(TN[3:2:end-1]))]
-    ns = reverse(TN[2:2:end])
+    ts = ordts(TN)
+    ns = ordns(TN)
     N = TN[end]
     pnt = 1
     c = 0.
@@ -173,6 +200,10 @@ function cumulative_lineages(t, TN::Vector, rho::Float64; k::Int = 0)
     first_der_p = ForwardDiff.derivative(s -> laplace_n(TNp,s), 2rho*k) / (2 * TNp[end]^2)
     lap_p = laplace_n(TNp, 2rho*k) / (2 * TNp[end]^2)
     return round(2TN[1] * rho * (exp(-c-2rho*k*t)*(first_der_p - t*lap_p) - first_der))
+end
+
+function approxposteriort(r::Number, L::Number, mu::Number, ts::Number, ns::Vector)
+    return lineages(t, L, mu, ts, ns; k = r)
 end
 
 end
