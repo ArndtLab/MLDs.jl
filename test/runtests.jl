@@ -66,6 +66,19 @@ end
     N0 = 1_000
     ts = rand(1:40*N0, 10)
     for t in ts
-        @test abs(MLDs.lineages(t, 1, [1, N0]; k = 1) - 2 * t * exp(-2 * t - 1/2N0) / 2N0) < eps(Float64)
+        @test abs(MLDs.lineages(t, 1, [1, N0]; k = 1.) - 2 * t * exp(-2 * t - 1/2N0) / 2N0) < eps(Float64)
+    end
+end
+
+@testset "Posterior time run" begin
+    N0 = 1_000
+    ts = rand(1:40*N0, 10)
+    r = 2.4
+    L = 1
+    mu = 1e-8
+    epochts = MLDs.ordts([L, N0])
+    ns = MLDs.ordns([L, N0])
+    for t in ts
+        MLDs.approxposteriort(t, r, L, mu, epochts, ns)
     end
 end
