@@ -1,7 +1,7 @@
 using MLDs
 using Test
 
-@testset "Compare to Mathematica" begin
+@testset "Compare MLD to Mathematica" begin
     st = map(1:1000) do i
         L = rand(1.0e6:1.0e9)
         N0 = N1 = N2 = -1.0
@@ -43,4 +43,29 @@ using Test
     @show maximum(abs.(getindex.(st, :d1)))
     @show maximum(abs.(getindex.(st, :d2)))
     @show maximum(abs.(getindex.(st, :d3)))
+end
+
+@testset "Coalescent stationary" begin
+    N0 = 1_000
+    ts = rand(1:40*N0, 10)
+    for t in ts
+        @test MLDs.coalescent(t, [0, N0]) ≈ exp(-t / (2 * N0)) / (2 * N0)
+    end
+end
+
+@testset "Extant basepairs stationary" begin
+    N0 = 1_000
+    L = 3_000_000_000
+    ts = rand(1:40*N0, 10)
+    for t in ts
+        @test MLDs.extbps(t, [L, N0]) ≈ round(L * exp(-t / (2 * N0)))
+    end
+end
+
+@testset "Lineages stationary" begin
+    N0 = 1_000
+    ts = rand(1:40*N0, 10)
+    for t in ts
+        @test MLDs.lineages(t, 1, [1, N0]; k = 1) ≈ 2 * t * exp(-2 * t - 1/2N0) / 2N0
+    end
 end
