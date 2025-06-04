@@ -1,7 +1,10 @@
 module CoalescentBase
 using ForwardDiff
 
-export ordts, ordns, coalescent, extbps, laplace_n, lineages, cumulative_lineages
+export ordts, ordns,
+    coalescent, extbps, 
+    laplace_n, 
+    lineages, cumulative_lineages, approxposteriort
 
 function ordts(TN::Vector)
     # TN = [L, N0, T1, N1, T2, N2, ...]
@@ -144,14 +147,14 @@ than `k` basepairs.
 The demographic scenario is encoded in `TN` and the recombination rate is `rho`
 in unit per bp per generation.
 """
-function lineages(t::Number, rho::Number, TN::Vector; k::Int = 0)
+function lineages(t::Number, rho::Number, TN::Vector; k::Number = 0)
     ts = ordts(TN)
     ns = ordns(TN)
     L = TN[1]
     return lineages(t, L, rho, ts, ns; k)
 end
 
-function lineages(t::Number, L::Number, rho::Number, ts::Vector, ns::Vector; k::Int = 0)
+function lineages(t::Number, L::Number, rho::Number, ts::Vector, ns::Vector; k::Number = 0)
     pnt = 1
     c = 0.
     while (pnt < length(ts)) && (ts[pnt] < t)
@@ -169,7 +172,7 @@ function lineages(t::Number, L::Number, rho::Number, ts::Vector, ns::Vector; k::
     return 2L * rho * t * exp(-2rho * t * k - c) / 2ns[pnt-1]
 end
 
-function cumulative_lineages(t, TN::Vector, rho::Float64; k::Int = 0)
+function cumulative_lineages(t, TN::Vector, rho::Float64; k::Number = 0)
     ts = ordts(TN)
     ns = ordns(TN)
     N = TN[end]
@@ -202,7 +205,7 @@ function cumulative_lineages(t, TN::Vector, rho::Float64; k::Int = 0)
     return round(2TN[1] * rho * (exp(-c-2rho*k*t)*(first_der_p - t*lap_p) - first_der))
 end
 
-function approxposteriort(r::Number, L::Number, mu::Number, ts::Number, ns::Vector)
+function approxposteriort(t::Number, r::Number, L::Number, mu::Number, ts::Vector, ns::Vector)
     return lineages(t, L, mu, ts, ns; k = r)
 end
 
