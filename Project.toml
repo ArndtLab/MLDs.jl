@@ -1,6 +1,6 @@
 name = "MLDs"
 uuid = "cac4bed1-6c8c-4dbe-be0d-c63a427c1233"
-version = "0.1.4"
+version = "0.2.0"
 authors = ["Tommaso Stentella <stentell@molgen.mpg.de> and contributors"]
 
 [deps]
