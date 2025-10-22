@@ -1,18 +1,18 @@
 module MLDs
 
-using LinearAlgebra #, Statistics, StatsBase
+using LinearAlgebra
 using ForwardDiff
-# using FastGaussQuadrature, Integrals, StaticArrays
 
 include("CoalescentBase.jl")
 using .CoalescentBase
 
+include("SMCpIntegrals.jl")
+using .SMCpIntegrals
+
 export 
-    hid, hid_integral
+    hid, hid_integral, firstorder, laplacekingman, mldsmcp, mldsmcp!
 
 # Computing
-
-include("mathematica-derived.jl")
 
 function secondderivative(f, x)
     dfdx = x -> ForwardDiff.derivative(f, x)
@@ -51,31 +51,35 @@ function hid_integral(Nv::Vector, Tv::Vector, L::Number, mu::Float64, r::Number)
 	# prefactor    pure bliss
 end
 
-function truncated_mld(TN::Vector, μ::Number, r::Number, T::Number, sign::Bool, w::Number)
-    # Ttot = sum(TN[3:2:end])
-    Nsum = sign ? sum([1/2x for x in TN[4:2:end]], init=0) : sum(1/2x for x in TN[2:2:end])
-    out = w * exp(-(2μ*r + Nsum) * T) * 
-        (hid(TN, μ, r) + 4μ^2*TN[1] * T^2*laplace_n(TN, 2μ*r) - 
-        8μ^2*TN[1] * T*ForwardDiff.derivative(s -> laplace_n(TN, s), 2μ*r))
-    return out >= 0 ? out : 0
+function mldsmcp(rs::Vector{<:Real}, edges::Vector{<:Real}, mu::Real, rho::Real,
+    TN::AbstractVector{<:Real}, order::Int, ndt::Int
+)
+    res = Array{Float64}(undef, length(rs), order)
+    jprt = Array{Float64}(undef, ndt, length(rs))
+    temp = Array{Float64}(undef, length(rs), ndt)
+    qtt = Array{Float64}(undef, ndt, ndt)
+    yth = mldsmcp!(res, jprt, temp, qtt, rs, edges, mu, rho, TN)
+    return yth
 end
 
-function admixed_mld(r::Number, μ::Number, L, N0, N1, N2, N3, T2, T3)
-    TN3 = [L, N3]
-    TN1 = [L, N1, T3, N3]
-    TN2 = [L, N2, T3, N3]
-    TN01 = [L, N0, T2, N1, T3, N3]
-    TN02 = [L, N0, T2, N2, T3, N3]
-    TN00 = [L, N0, T3, N3]
+function mldsmcp!(res::AbstractMatrix{<:Real}, jprt::AbstractMatrix{<:Real}, temp::AbstractMatrix{<:Real}, qtt::AbstractMatrix{<:Real},
+    rs::Vector{<:Real}, edges::Vector{<:Real}, mu::Real, rho::Real,
+    TN::AbstractVector{<:Real}
+)
+    ts = ordts(TN)
+    ns = ordns(TN)
+    prordn!(res, jprt, temp, qtt, rs, edges, mu+rho, ts, ns)
+    yth = zeros(length(rs))
+    for i in 1:size(res,2)
+        yth .+= res[:,i] * 2 * mu * TN[1] * (rho/(mu+rho))^(i-1) * (mu/(mu+rho))
+    end
+    return yth
+end
 
-    # admixed = hid(TN3, μ, r) #=truncated_mld(TN3, μ, r, 0, true, 1)=# - truncated_mld(TN3, μ, r, T3, false, 1)
-    admixed = truncated_mld(TN1, μ, r, T3, true, (N1/(N1+N2))^2) - truncated_mld(TN1, μ, r, T3+T2, false, (N1/(N1+N2))^2)
-    admixed += truncated_mld(TN2, μ, r, T3, true, (N2/(N1+N2))^2) - truncated_mld(TN2, μ, r, T3+T2, false, (N2/(N1+N2))^2)
-    admixed += truncated_mld(TN01, μ, r, T3+T2, true, (N1/(N1+N2))^2)
-    admixed += truncated_mld(TN02, μ, r, T3+T2, true, (N2/(N1+N2))^2)
-    admixed += truncated_mld(TN00, μ, r, T3+T2, true, 2(N1*N2)/(N1+N2)^2)
-
-    return admixed
+function laplacekingman(rs::Vector{<:Real}, mu::Real, TN::AbstractVector{<:Real})
+    ts = ordts(TN)
+    ns = ordns(TN)
+    return map(r -> firstorder(r, mu, ts, ns), rs) * 2 * mu * TN[1]
 end
 
 end
