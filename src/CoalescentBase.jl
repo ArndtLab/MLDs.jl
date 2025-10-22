@@ -4,19 +4,19 @@ using ForwardDiff
 export ordts, ordns,
     coalescent, extbps, 
     laplace_n, 
-    lineages, cumulative_lineages, approxposteriort
+    lineages, cumulative_lineages
 
-function ordts(TN::Vector)
+function ordts(TN::Vector{T}) where T
     # TN = [L, N0, T1, N1, T2, N2, ...]
     # returns the ordered times in reverse order
-    ts = [0;cumsum(reverse(TN[3:2:end-1]))]
+    ts = [0;cumsum(TN[end-1:-2:3])]
     return ts
 end
 
 function ordns(TN::Vector)
     # TN = [L, N0, T1, N1, T2, N2, ...]
     # returns the ordered population sizes in reverse order
-    ns = reverse(TN[2:2:end])
+    ns = TN[end:-2:2]
     return ns
 end
 
@@ -203,10 +203,6 @@ function cumulative_lineages(t, TN::Vector, rho::Float64; k::Number = 0)
     first_der_p = ForwardDiff.derivative(s -> laplace_n(TNp,s), 2rho*k) / (2 * TNp[end]^2)
     lap_p = laplace_n(TNp, 2rho*k) / (2 * TNp[end]^2)
     return round(2TN[1] * rho * (exp(-c-2rho*k*t)*(first_der_p - t*lap_p) - first_der))
-end
-
-function approxposteriort(t::Number, r::Number, L::Number, mu::Number, ts::Vector, ns::Vector)
-    return lineages(t, L, mu, ts, ns; k = r)
 end
 
 end
