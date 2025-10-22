@@ -1,5 +1,8 @@
 using MLDs
+using MLDs.SMCpIntegrals: Nt, cumcr, pt, ptt
 using Test
+
+include("mathematica-derived.jl")
 
 @testset "Compare MLD to Mathematica" begin
     st = map(1:1000) do i
@@ -22,11 +25,11 @@ using Test
         y2 = hid([L, N0, T1, N1], mu, r)
         y3 = hid([L, N0, T1, N1, T2, N2], mu, r)
 
-        y1m = MLDs.hidm(L, N0, mu, r)
-        y2m = MLDs.hidm(L, N0, T1, N1, mu, r)
-        y21m = MLDs.hidm(L, N0, T1, N0, mu, r)
-        y3m = MLDs.hidm(L, N0, T1, N1, T2, N2, mu, r)
-        y31m = MLDs.hidm(L, N0, T1, N0, T2, N0, mu, r)
+        y1m = hidm(L, N0, mu, r)
+        y2m = hidm(L, N0, T1, N1, mu, r)
+        y21m = hidm(L, N0, T1, N0, mu, r)
+        y3m = hidm(L, N0, T1, N1, T2, N2, mu, r)
+        y31m = hidm(L, N0, T1, N0, T2, N0, mu, r)
 
         @test abs(y1 - y1m) < 1.0e-10
         @test abs(y1 - y21m) < 1.0e-10
@@ -70,15 +73,40 @@ end
     end
 end
 
-@testset "Posterior time run" begin
+@testset "hid vs fisrt order" begin
     N0 = 1_000
-    ts = rand(1:40*N0, 10)
-    r = 2.4
-    L = 1
-    mu = 1e-8
-    epochts = MLDs.ordts([L, N0])
-    ns = MLDs.ordns([L, N0])
-    for t in ts
-        MLDs.approxposteriort(t, r, L, mu, epochts, ns)
+    L = 3_000_000_000
+    mu = 1.25e-8
+    for r in rand(1:1_000_000, 10)
+        y1 = hid([L, N0], mu, r)
+        y2 = firstorder(r, mu, [0], [N0]) * 2 * mu * L
+        y3 = laplacekingman([r], mu, [L, N0])[1]
+        @test abs(y1 - y2) < 1.0e-10
+        @test y2 ≈ y3
     end
+end
+
+@testset "aux functions SMCpIntegrals" begin
+    times = [0.0, 1000.0, 2000.0]
+    sizes = [2000.0, 1000.0, 3000.0]
+
+    prev = 0
+    for t in sort(rand(0.0:5000.0, 20))
+        @test Nt(t, times, sizes) > 0
+        @test cumcr(0.0, t, times, sizes) >= 0
+        @test cumcr(0.0, t, times, sizes) >= prev
+        prev = cumcr(0.0, t, times, sizes)
+        @test pt(t, times, sizes) >= 0
+        @test ptt(t, 100, times, sizes) >= 0
+    end
+end
+
+@testset "mld smcp runs" begin
+    TN = [3_000_000_000, 20000, 60000, 8000, 8000, 16000, 1600, 2000, 400, 10000]
+    rs = collect(1:100)
+    ed = collect(1:101)
+    mu = 1e-8
+    rho = 1e-8
+    y = mldsmcp(rs, ed, mu, rho, TN, 10, 100)
+    @test all(y .> 0)
 end
