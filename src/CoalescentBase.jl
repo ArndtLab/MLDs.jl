@@ -1,23 +1,31 @@
 module CoalescentBase
 using ForwardDiff
 
-export ordts, ordns,
+export getts, getns,
     coalescent, extbps, 
     laplace_n, 
     lineages, cumulative_lineages
 
-function ordts(TN::Vector{T}) where T
+function getts(TN::AbstractVector{T}, i::Int) where T
     # TN = [L, N0, T1, N1, T2, N2, ...]
     # returns the ordered times in reverse order
-    ts = [0;cumsum(TN[end-1:-2:3])]
-    return ts
+    (i < 1 || i > length(TN) ÷ 2) && throw(ArgumentError("index out of bounds"))
+    s = zero(T)
+    for j in 2:i
+        s += TN[end-1-2*(j-2)]
+    end
+    return s
 end
 
-function ordns(TN::Vector)
+function getns(TN::AbstractVector{T}, i::Int) where T
     # TN = [L, N0, T1, N1, T2, N2, ...]
     # returns the ordered population sizes in reverse order
-    ns = TN[end:-2:2]
-    return ns
+    (i < 1 || i > length(TN) ÷ 2) && throw(ArgumentError("index out of bounds"))
+    s = zero(T)
+    for j in 1:i
+        s += TN[end-2*(j-1)]
+    end
+    return s
 end
 
 """
@@ -33,27 +41,21 @@ of such `t`s is geometric as introduced by Hudson and Kingman.
 ### References
 """
 function coalescent(t::Number, TN::Vector)
-    ts = ordts(TN)
-    ns = ordns(TN)
-    return coalescent(t, ts, ns)
-end
-
-function coalescent(t::Number, ts::Vector, ns::Vector)
     pnt = 1
     c = 0.
-    while (pnt < length(ts)) && (ts[pnt] < t)
-        gens = ts[pnt+1] >= t ? (t - ts[pnt]) : (ts[pnt+1] - ts[pnt])
-        N = ns[pnt]
+    while (pnt < length(TN)÷2) && (getts(TN, pnt) < t)
+        gens = getts(TN, pnt+1) >= t ? (t - getts(TN, pnt)) : (getts(TN, pnt+1) - getts(TN, pnt))
+        N = getns(TN, pnt)
         c += gens / 2N
         pnt += 1
     end
-    if ts[pnt] < t
-        gens = t - ts[pnt]
-        N = ns[pnt]
+    if getts(TN, pnt) < t
+        gens = t - getts(TN, pnt)
+        N = getns(TN, pnt)
         c += gens / 2N
         pnt += 1
     end
-    return exp(-c) / 2ns[pnt-1]
+    return exp(-c) / (2 * getns(TN, pnt-1))
 end
 
 """
@@ -67,28 +69,21 @@ The demographic scenario is encoded in `TN`.
 ### Reference
 """
 function extbps(t::Number, TN::Vector)
-    ts = ordts(TN)
-    ns = ordns(TN)
-    L = Float64(TN[1])
-    return extbps(t, L, ts, ns)
-end
-
-function extbps(t::Number, L::Number, ts::Vector, ns::Vector)
     pnt = 1
     c = 0.
-    while (pnt < length(ts)) && (ts[pnt] < t)
-        gens = ts[pnt+1] >= t ? (t - ts[pnt]) : (ts[pnt+1] - ts[pnt])
-        N = ns[pnt]
+    while (pnt < length(TN)÷2) && (getts(TN, pnt) < t)
+        gens = getts(TN, pnt+1) >= t ? (t - getts(TN, pnt)) : (getts(TN, pnt+1) - getts(TN, pnt))
+        N = getns(TN, pnt)
         c += gens / 2N
         pnt += 1
     end
-    if ts[pnt] < t
-        gens = t - ts[pnt]
-        N = ns[pnt]
-        c += gens / 2N
+    if getts(TN, pnt) < t
+        gens = t - getts(TN, pnt)
+        N = getns(TN, pnt)
+        c += gens / (2 * N)
         pnt += 1
     end
-    return round(L*exp(-c))
+    return round(TN[1]*exp(-c))
 end
 
 function laplace_n(TN::Vector, s::Number)
@@ -148,55 +143,49 @@ The demographic scenario is encoded in `TN` and the recombination rate is `rho`
 in unit per bp per generation.
 """
 function lineages(t::Number, rho::Number, TN::Vector; k::Number = 0)
-    ts = ordts(TN)
-    ns = ordns(TN)
     L = TN[1]
-    return lineages(t, L, rho, ts, ns; k)
-end
-
-function lineages(t::Number, L::Number, rho::Number, ts::Vector, ns::Vector; k::Number = 0)
     pnt = 1
     c = 0.
-    while (pnt < length(ts)) && (ts[pnt] < t)
-        gens = ts[pnt+1] >= t ? (t - ts[pnt]) : (ts[pnt+1] - ts[pnt])
-        N = ns[pnt]
-        c += gens / 2N
+    while (pnt < length(TN)÷2) && (getts(TN, pnt) < t)
+        gens = getts(TN, pnt+1) >= t ? (t - getts(TN, pnt)) : (getts(TN, pnt+1) - getts(TN, pnt))
+        N = getns(TN, pnt)
+        c += gens / (2 * N)
         pnt += 1
     end
-    if ts[pnt] < t
-        gens = t - ts[pnt]
-        N = ns[pnt]
-        c += gens / 2N
+    if getts(TN, pnt) < t
+        gens = t - getts(TN, pnt)
+        N = getns(TN, pnt)
+        c += gens / (2 * N)
         pnt += 1
     end
-    return 2L * rho * t * exp(-2rho * t * k - c) / 2ns[pnt-1]
+    return 2 * L * rho * t * exp(-2 * rho * t * k - c) / (2 * getns(TN, pnt-1))
 end
 
 function cumulative_lineages(t, TN::Vector, rho::Float64; k::Number = 0)
-    ts = ordts(TN)
-    ns = ordns(TN)
     N = TN[end]
     pnt = 1
     c = 0.
-    while (pnt < length(ts)) && (ts[pnt] < t)
-        gens = ts[pnt+1] >= t ? (t - ts[pnt]) : (ts[pnt+1] - ts[pnt])
-        N = ns[pnt]
-        c += gens / 2N
+    while (pnt < length(TN)÷2) && (getts(TN, pnt) < t)
+        gens = getts(TN, pnt+1) >= t ? (t - getts(TN, pnt)) : (getts(TN, pnt+1) - getts(TN, pnt))
+        N = getns(TN, pnt)
+        c += gens / (2 * N)
         pnt += 1
     end
-    if ts[pnt] < t
-        gens = t - ts[pnt]
-        N = ns[pnt]
-        c += gens / 2N
+    if getts(TN, pnt) < t
+        gens = t - getts(TN, pnt)
+        N = getns(TN, pnt)
+        c += gens / (2 * N)
         pnt += 1
     end
     first_der = ForwardDiff.derivative(s -> laplace_n(TN,s), 2rho*k) / (2 * TN[end]^2)
-    ep = findfirst(ts .> t)
+    ep = 1
+    while ep < length(TN)÷2 && getts(TN, ep+1) <= t
+        ep += 1
+    end
     if isnothing(ep)
         TNp = TN[1:2]
     else
-        ep -= 1
-        remn_ep = sum(TN[end-2ep+1:2:end-1]) - t
+        remn_ep = sum(TN[end-2ep-1:2:end-1]) - t
         TNp = TN[1:end-2ep+2]
         TNp[end-1] = remn_ep
     end

@@ -10,7 +10,7 @@ include("SMCpIntegrals.jl")
 using .SMCpIntegrals
 
 export 
-    hid, hid_integral, firstorder, laplacekingman, mldsmcp, mldsmcp!
+    hid, hid_integral, firstorder, firstorderint, laplacekingman, mldsmcp, mldsmcp!, IntegralArrays
 
 # Computing
 
@@ -51,35 +51,23 @@ function hid_integral(Nv::Vector, Tv::Vector, L::Number, mu::Float64, r::Number)
 	# prefactor    pure bliss
 end
 
-function mldsmcp(rs::Vector{<:Real}, edges::Vector{<:Real}, mu::Real, rho::Real,
-    TN::AbstractVector{<:Real}, order::Int, ndt::Int
-)
-    res = Array{Float64}(undef, length(rs), order)
-    jprt = Array{Float64}(undef, ndt, length(rs))
-    temp = Array{Float64}(undef, length(rs), ndt)
-    qtt = Array{Float64}(undef, ndt, ndt)
-    yth = mldsmcp!(res, jprt, temp, qtt, rs, edges, mu, rho, TN)
-    return yth
-end
-
-function mldsmcp!(res::AbstractMatrix{<:Real}, jprt::AbstractMatrix{<:Real}, temp::AbstractMatrix{<:Real}, qtt::AbstractMatrix{<:Real},
+function mldsmcp!(ys::AbstractVector{<:Real}, range::AbstractRange{<:Int}, bag::IntegralArrays{<:Real},
     rs::Vector{<:Real}, edges::Vector{<:Real}, mu::Real, rho::Real,
     TN::AbstractVector{<:Real}
 )
-    ts = ordts(TN)
-    ns = ordns(TN)
-    prordn!(res, jprt, temp, qtt, rs, edges, mu+rho, ts, ns)
-    yth = zeros(length(rs))
-    for i in 1:size(res,2)
-        yth .+= res[:,i] * 2 * mu * TN[1] * (rho/(mu+rho))^(i-1) * (mu/(mu+rho))
+    prordn!(bag, rs, edges, mu+rho, TN)
+    ys .= 0.
+    for i in range
+        ys .+= bag.res[:,i] * 2 * mu * TN[1] * (rho/(mu+rho))^(i-1) * (mu/(mu+rho))
     end
-    return yth
 end
 
-function laplacekingman(rs::Vector{<:Real}, mu::Real, TN::AbstractVector{<:Real})
-    ts = ordts(TN)
-    ns = ordns(TN)
-    return map(r -> firstorder(r, mu, ts, ns), rs) * 2 * mu * TN[1]
+function laplacekingman(r::Real, mu::Real, TN::AbstractVector{<:Real})
+    return firstorder(r, mu, TN) * 2 * mu * TN[1]
+end
+
+function laplacekingmanint(r::Real, mu::Real, TN::AbstractVector{<:Real})
+    return firstorderint(r, mu, TN) * 2 * mu * TN[1]
 end
 
 end

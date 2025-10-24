@@ -79,25 +79,24 @@ end
     mu = 1.25e-8
     for r in rand(1:1_000_000, 10)
         y1 = hid([L, N0], mu, r)
-        y2 = firstorder(r, mu, [0], [N0]) * 2 * mu * L
-        y3 = laplacekingman([r], mu, [L, N0])[1]
+        y2 = firstorder(r, mu, [L, N0]) * 2 * mu * L
+        y3 = laplacekingman(r, mu, [L, N0])[1]
         @test abs(y1 - y2) < 1.0e-10
         @test y2 ≈ y3
     end
 end
 
 @testset "aux functions SMCpIntegrals" begin
-    times = [0.0, 1000.0, 2000.0]
-    sizes = [2000.0, 1000.0, 3000.0]
+    TN = [3_000_000_000.0, 2000.0, 1000.0, 1000.0, 1000.0, 3000.0]
 
     prev = 0
     for t in sort(rand(0.0:5000.0, 20))
-        @test Nt(t, times, sizes) > 0
-        @test cumcr(0.0, t, times, sizes) >= 0
-        @test cumcr(0.0, t, times, sizes) >= prev
-        prev = cumcr(0.0, t, times, sizes)
-        @test pt(t, times, sizes) >= 0
-        @test ptt(t, 100, times, sizes) >= 0
+        @test Nt(t, TN) > 0
+        @test cumcr(0.0, t, TN) >= 0
+        @test cumcr(0.0, t, TN) >= prev
+        prev = cumcr(0.0, t, TN)
+        @test pt(t, TN) >= 0
+        @test ptt(t, 100, TN) >= 0
     end
 end
 
@@ -107,6 +106,8 @@ end
     ed = collect(1:101)
     mu = 1e-8
     rho = 1e-8
-    y = mldsmcp(rs, ed, mu, rho, TN, 10, 100)
+    y = zeros(length(rs))
+    bag = IntegralArrays(10, 100, length(rs))
+    mldsmcp!(y, 1:10, bag, rs, ed, mu, rho, TN)
     @test all(y .> 0)
 end
